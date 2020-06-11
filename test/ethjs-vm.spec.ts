@@ -2,6 +2,7 @@ import { Contract, ContractFactory, Wallet, BigNumber } from "ethers";
 import VM from "ethereumjs-vm";
 import { Transaction } from "ethereumjs-tx";
 import Account from "ethereumjs-account";
+import abi from "ethereumjs-abi";
 import { bufferify, getAddressFromPrivateKey, toBN } from "@connext/utils";
 // Get artifacts
 import SimpleLinkedTransferApp from "../artifacts/SimpleLinkedTransferApp.json";
@@ -31,6 +32,7 @@ describe.only("Pure evm with view function", () => {
   let wallet: Wallet;
   let state;
   let action;
+  let functionData;
 
   beforeEach(async () => {
     // Deploy contract
@@ -46,6 +48,10 @@ describe.only("Pure evm with view function", () => {
     const res = getSimpleLinkedTransferInfo();
     state = res.state;
     action = res.action;
+    functionData = simpleLinkedTransferApp.interface.encodeFunctionData(
+      "applyAction",
+      [encodeState(state), encodeAction(action)]
+    );
   });
 
   it.only("should be able to call applyAction using eth-js", async () => {
@@ -58,31 +64,47 @@ describe.only("Pure evm with view function", () => {
 
     // Deploy contract to vm
     const bytecode = SimpleLinkedTransferApp.bytecode;
-    const tx = new Transaction({
-      gasLimit: toBN(2000000).toHexString(), // We assume that 2M is enough,
+    const deployTx = new Transaction({
+      gasLimit: toBN(2000000).toHexString(),
       gasPrice: toBN(1).toHexString(),
-      data: bytecode,
       nonce: await getAccountNonce(vm, wallet.privateKey),
+      data: bytecode,
     });
-    tx.sign(bufferify(wallet.privateKey));
-    const deploymentResult = await vm.runTx({ tx });
+    deployTx.sign(bufferify(wallet.privateKey));
+    const deploymentResult = await vm.runTx({ tx: deployTx });
     expect(deploymentResult.execResult.exceptionError).to.be.undefined;
 
     const appDef = getAddress(hexlify(deploymentResult.createdAddress!));
     expect(appDef).to.be.eq(simpleLinkedTransferApp.address);
 
-    // // Execute on evm, decode output
+    // Execute on evm
+    const actionTx = new Transaction({
+      to: appDef,
+      gasLimit: toBN(2000000).toHexString(),
+      gasPrice: toBN(1).toHexString(),
+      data: functionData,
+      nonce: await getAccountNonce(vm, wallet.privateKey),
+    });
+    actionTx.sign(bufferify(wallet.privateKey));
+    const actionResult = await vm.runTx({ tx: actionTx });
+    expect(actionResult.execResult.exceptionError).to.be.undefined;
+    const vmEncoded = simpleLinkedTransferApp.interface.decodeFunctionResult(
+      "applyAction",
+      hexlify(actionResult.execResult.returnValue)
+    );
 
-    // const evmDecoded = {};
+    // Execute on contract
+    const encoded = await simpleLinkedTransferApp.functions.applyAction(
+      encodeState(state),
+      encodeAction(action)
+    );
 
-    // // Execute on contract, decode output
-    // const encoded = await simpleLinkedTransferApp.functions.applyAction(
-    //   encodeState(state),
-    //   encodeAction(action)
-    // );
-    // const contractDecoded = decodeState(encoded);
+    expect(encoded[0]).to.eq(vmEncoded[0]);
 
-    // // Verify both values are the same once decoded
-    // expect(evmDecoded).to.containSubset(contractDecoded);
+    // Decode outputs
+    const contractDecoded = decodeState(encoded[0]);
+    const vmDecoded = decodeState(vmEncoded[0]);
+    // Verify both values are the same once decoded
+    expect(vmDecoded).to.containSubset(contractDecoded);
   });
 });
