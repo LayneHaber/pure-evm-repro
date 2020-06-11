@@ -1,8 +1,4 @@
 import { Contract, ContractFactory } from "ethers";
-// @ts-ignore
-import { waffle as buidler } from "@nomiclabs/buidler";
-import { solidity } from "ethereum-waffle";
-import { use } from "chai";
 const pure_evm = require("pure-evm");
 
 // Get artifacts
@@ -12,14 +8,10 @@ import {
   encodeState,
   encodeAction,
   decodeState,
+  provider,
+  expect,
 } from "./utils";
 import { defaultAbiCoder } from "ethers/lib/utils";
-
-// Setup assertions
-use(require("chai-subset"));
-const expect = use(solidity).expect;
-
-const provider = buidler.provider;
 
 describe("Pure evm with view function", () => {
   let simpleLinkedTransferApp: Contract;
