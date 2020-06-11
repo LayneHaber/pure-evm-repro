@@ -1,6 +1,16 @@
+// @ts-ignore
+import { waffle as buidler } from "@nomiclabs/buidler";
+import { solidity } from "ethereum-waffle";
+import { use } from "chai";
 import { utils, constants } from "ethers";
 const { One, Zero, HashZero } = constants;
 const { defaultAbiCoder, hexlify, randomBytes, soliditySha256 } = utils;
+
+// Setup assertions
+use(require("chai-subset"));
+export const expect = use(solidity).expect;
+
+export const provider = buidler.provider;
 
 export type CoinTransfer = {};
 const coinTransferEncoding = `tuple(address to, uint256 amount)[2]`;
