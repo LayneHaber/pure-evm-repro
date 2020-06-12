@@ -25,7 +25,7 @@ async function getAccountNonce(vm: VM, pk: string) {
   return account.nonce;
 }
 
-describe.only("Pure evm with view function", () => {
+describe("Pure evm with view function", () => {
   let simpleLinkedTransferApp: Contract;
 
   // Constants
@@ -54,7 +54,7 @@ describe.only("Pure evm with view function", () => {
     );
   });
 
-  it.only("should be able to call applyAction using eth-js", async () => {
+  it("should be able to call applyAction using eth-js", async () => {
     // Add wallet to VM
     const vm = new VM();
     const account = new Account({
