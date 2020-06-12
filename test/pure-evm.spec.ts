@@ -79,17 +79,6 @@ describe('Pure evm with view function', () => {
       Buffer.from(functionData.replace('0x', ''), 'hex')
     )
 
-    // Input data
-    console.log('INPUT:')
-    for (let i = 0; i < input.length; i += 32) {
-      console.log(
-        ' ',
-        Buffer.from(input.slice(i, i + 32))
-          .toString('hex')
-          .replace('0x', '')
-      )
-    }
-
     // Execute on evm, decode output
     const output = pure_evm.exec(
       Uint8Array.from(
@@ -101,33 +90,12 @@ describe('Pure evm with view function', () => {
       input
     )
 
-    console.log('OUTPUT:')
-    for (let i = 0; i < output.length; i += 32) {
-      console.log(
-        ' ',
-        Buffer.from(output.slice(i, i + 32))
-          .toString('hex')
-          .replace('0x', '')
-      )
-    }
-
     expect(Buffer.from(output).toString('hex')).to.equal(
-      'f6eae462164dd08642011ff2e9560b8fce978b679c28d29b8dd09c5a988f9c0f'
+      'b8f12ea8c9a95d4b4641b03d9fa5a71ad30b44ed6cd4bf793bbe1a5801b986d4'
     )
   })
 
   it('should be able to call applyAction using pure-evm', async () => {
-    // Input data
-    console.log('INPUT:')
-    for (let i = 0; i < formatted.length; i += 32) {
-      console.log(
-        ' ',
-        Buffer.from(formatted.slice(i, i + 32))
-          .toString('hex')
-          .replace('0x', '')
-      )
-    }
-
     // Execute on evm, decode output
     const output = pure_evm.exec(
       Uint8Array.from(
@@ -139,30 +107,18 @@ describe('Pure evm with view function', () => {
       formatted
     )
 
-    console.log('OUTPUT:')
-    for (let i = 0; i < output.length; i += 32) {
-      console.log(
-        ' ',
-        Buffer.from(output.slice(i, i + 32))
-          .toString('hex')
-          .replace('0x', '')
-      )
-    }
-
     let outputValues = simpleLinkedTransferApp.interface.decodeFunctionResult(
       'applyAction',
       output
     )
-    // const outputValues = defaultAbiCoder.decode(['bytes'], output)
-    console.log('OUTPUT VALUES:', outputValues)
-    const evmDecoded = decodeState(outputValues[1])
+    const evmDecoded = decodeState(outputValues[0])
 
     // Execute on contract, decode output
     const encoded = await simpleLinkedTransferApp.functions.applyAction(
       encodeState(state),
       encodeAction(action)
     )
-    const contractDecoded = decodeState(encoded)
+    const contractDecoded = decodeState(encoded[0])
 
     // Verify both values are the same once decoded
     expect(evmDecoded).to.containSubset(contractDecoded)
