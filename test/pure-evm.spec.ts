@@ -103,7 +103,11 @@ describe('Pure evm with view function', () => {
       )
     }
 
-    const outputValues = defaultAbiCoder.decode(['bytes'], output)
+    let outputValues = simpleLinkedTransferApp.interface.decodeFunctionResult(
+      'applyAction',
+      output
+    )
+    // const outputValues = defaultAbiCoder.decode(['bytes'], output)
     console.log('OUTPUT VALUES:', outputValues)
     const evmDecoded = decodeState(outputValues[1])
 
