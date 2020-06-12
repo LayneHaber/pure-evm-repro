@@ -70,6 +70,52 @@ describe('Pure evm with view function', () => {
     expect(outputHex).to.be.eq(SimpleLinkedTransferApp.deployedBytecode)
   })
 
+  it('should be able to call hash function using pure-evm', async () => {
+    let functionData = simpleLinkedTransferApp.interface.encodeFunctionData(
+      'hash',
+      ['0x11111111111111111111111111111111']
+    )
+    let input = Uint8Array.from(
+      Buffer.from(functionData.replace('0x', ''), 'hex')
+    )
+
+    // Input data
+    console.log('INPUT:')
+    for (let i = 0; i < input.length; i += 32) {
+      console.log(
+        ' ',
+        Buffer.from(input.slice(i, i + 32))
+          .toString('hex')
+          .replace('0x', '')
+      )
+    }
+
+    // Execute on evm, decode output
+    const output = pure_evm.exec(
+      Uint8Array.from(
+        Buffer.from(
+          SimpleLinkedTransferApp.deployedBytecode.replace('0x', ''),
+          'hex'
+        )
+      ),
+      input
+    )
+
+    console.log('OUTPUT:')
+    for (let i = 0; i < output.length; i += 32) {
+      console.log(
+        ' ',
+        Buffer.from(output.slice(i, i + 32))
+          .toString('hex')
+          .replace('0x', '')
+      )
+    }
+
+    expect(Buffer.from(output).toString('hex')).to.equal(
+      'f6eae462164dd08642011ff2e9560b8fce978b679c28d29b8dd09c5a988f9c0f'
+    )
+  })
+
   it('should be able to call applyAction using pure-evm', async () => {
     // Input data
     console.log('INPUT:')
