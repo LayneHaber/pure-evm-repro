@@ -12,7 +12,13 @@ import {
   provider,
   expect,
 } from "./utils";
-import { defaultAbiCoder } from "ethers/lib/utils";
+import {
+  defaultAbiCoder,
+  randomBytes,
+  hexlify,
+  SigningKey,
+  joinSignature,
+} from "ethers/lib/utils";
 
 describe("Pure evm with view function", () => {
   let simpleLinkedTransferApp: Contract;
@@ -133,5 +139,34 @@ describe("Pure evm with view function", () => {
 
     // Verify both values are the same once decoded
     expect(evmDecoded).to.containSubset(contractDecoded);
+  });
+
+  it.only("should be able to call the ECDSA.recover function from pure-evm", async () => {
+    // Execute on evm, decode output
+    const digest = hexlify(randomBytes(32));
+    const key = new SigningKey(wallet.privateKey);
+    const sig = joinSignature(key.signDigest(digest));
+    const functionData = simpleRecover.interface.encodeFunctionData("recover", [
+      sig,
+      digest,
+    ]);
+    const output = pure_evm.exec(
+      Uint8Array.from(
+        Buffer.from(
+          SimpleLinkedTransferApp.deployedBytecode.replace("0x", ""),
+          "hex"
+        )
+      ),
+      Uint8Array.from(Buffer.from(functionData.replace("0x", ""), "hex"))
+    );
+    const bytes = defaultAbiCoder.decode(["bytes"], output)[0];
+    const evmDecoded = defaultAbiCoder.decode(["address"], bytes);
+
+    // Execute on contract, decode output
+    const [addr] = await simpleRecover.functions.recover(sig, digest);
+
+    // Verify both values are the same once decoded
+    expect(addr).to.be.eq(wallet.address);
+    expect(addr).to.be.eq(evmDecoded);
   });
 });
