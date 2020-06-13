@@ -142,7 +142,7 @@ describe("Pure evm with view function", () => {
   });
 
   it.only("should be able to call the ECDSA.recover function from pure-evm", async () => {
-    // Execute on evm, decode output
+    // Generate method info
     const digest = hexlify(randomBytes(32));
     const key = new SigningKey(wallet.privateKey);
     const sig = joinSignature(key.signDigest(digest));
@@ -150,17 +150,19 @@ describe("Pure evm with view function", () => {
       sig,
       digest,
     ]);
+
+    // Execute on evm, decode output
     const output = pure_evm.exec(
       Uint8Array.from(
-        Buffer.from(
-          SimpleLinkedTransferApp.deployedBytecode.replace("0x", ""),
-          "hex"
-        )
+        Buffer.from(SimpleRecover.deployedBytecode.replace("0x", ""), "hex")
       ),
       Uint8Array.from(Buffer.from(functionData.replace("0x", ""), "hex"))
     );
-    const bytes = defaultAbiCoder.decode(["bytes"], output)[0];
-    const evmDecoded = defaultAbiCoder.decode(["address"], bytes);
+    const outputValues = simpleRecover.interface.decodeFunctionResult(
+      "recover",
+      output
+    );
+    const evmDecoded = defaultAbiCoder.decode(["address"], outputValues[0]);
 
     // Execute on contract, decode output
     const [addr] = await simpleRecover.functions.recover(sig, digest);
