@@ -1,5 +1,5 @@
-import { Contract, ContractFactory, Wallet, constants, Signer } from "ethers";
-const pure_evm = require("pure-evm");
+import { Contract, ContractFactory, Wallet } from "ethers";
+const pure_evm = require("pure-evm-wasm");
 
 // Get artifacts
 import SimpleLinkedTransferApp from "../artifacts/SimpleLinkedTransferApp.json";
@@ -12,20 +12,14 @@ import {
   provider,
   expect,
 } from "./utils";
-import {
-  defaultAbiCoder,
-  hexlify,
-  SigningKey,
-  joinSignature,
-} from "ethers/lib/utils";
-import { randomBytes } from "crypto";
+import { defaultAbiCoder } from "ethers/lib/utils";
 
 describe("Pure evm with view function", () => {
   let simpleLinkedTransferApp: Contract;
   let simpleRecover: Contract;
-  let wallet: Wallet;
 
   // Constants
+  let wallet: Wallet;
   let formatted;
   let functionData;
   let state;
@@ -87,7 +81,32 @@ describe("Pure evm with view function", () => {
     expect(outputHex).to.be.eq(SimpleLinkedTransferApp.deployedBytecode);
   });
 
-  it("should be able to call applyAction using pure-evm (sha256 precompile)", async () => {
+  it("should be able to call hash function using pure-evm", async () => {
+    let functionData = simpleLinkedTransferApp.interface.encodeFunctionData(
+      "hash",
+      ["0x11111111111111111111111111111111"]
+    );
+    let input = Uint8Array.from(
+      Buffer.from(functionData.replace("0x", ""), "hex")
+    );
+
+    // Execute on evm, decode output
+    const output = pure_evm.exec(
+      Uint8Array.from(
+        Buffer.from(
+          SimpleLinkedTransferApp.deployedBytecode.replace("0x", ""),
+          "hex"
+        )
+      ),
+      input
+    );
+
+    expect(Buffer.from(output).toString("hex")).to.equal(
+      "b8f12ea8c9a95d4b4641b03d9fa5a71ad30b44ed6cd4bf793bbe1a5801b986d4"
+    );
+  });
+
+  it("should be able to call applyAction using pure-evm", async () => {
     // Execute on evm, decode output
     const output = pure_evm.exec(
       Uint8Array.from(
@@ -98,46 +117,21 @@ describe("Pure evm with view function", () => {
       ),
       formatted
     );
-    const bytes = defaultAbiCoder.decode(["bytes"], output)[0];
-    const evmDecoded = decodeState(bytes);
+
+    let outputValues = simpleLinkedTransferApp.interface.decodeFunctionResult(
+      "applyAction",
+      output
+    );
+    const evmDecoded = decodeState(outputValues[0]);
 
     // Execute on contract, decode output
     const encoded = await simpleLinkedTransferApp.functions.applyAction(
       encodeState(state),
       encodeAction(action)
     );
-    const contractDecoded = decodeState(encoded);
+    const contractDecoded = decodeState(encoded[0]);
 
     // Verify both values are the same once decoded
     expect(evmDecoded).to.containSubset(contractDecoded);
-  });
-
-  it.only("should be able to call applyAction using pure-evm (ECDSA.recover precompile)", async () => {
-    // Execute on evm, decode output
-    const digest = hexlify(randomBytes(32));
-    const key = new SigningKey(wallet.privateKey);
-    const sig = joinSignature(key.signDigest(digest));
-    const functionData = simpleRecover.interface.encodeFunctionData("recover", [
-      sig,
-      digest,
-    ]);
-    const output = pure_evm.exec(
-      Uint8Array.from(
-        Buffer.from(
-          SimpleLinkedTransferApp.deployedBytecode.replace("0x", ""),
-          "hex"
-        )
-      ),
-      Uint8Array.from(Buffer.from(functionData.replace("0x", ""), "hex"))
-    );
-    const bytes = defaultAbiCoder.decode(["bytes"], output)[0];
-    const evmDecoded = defaultAbiCoder.decode(["address"], bytes);
-
-    // Execute on contract, decode output
-    const [addr] = await simpleRecover.functions.recover(sig, digest);
-
-    // Verify both values are the same once decoded
-    expect(addr).to.be.eq(wallet.address);
-    expect(addr).to.be.eq(evmDecoded);
   });
 });
