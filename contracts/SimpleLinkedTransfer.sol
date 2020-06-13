@@ -4,7 +4,6 @@ pragma experimental "ABIEncoderV2";
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
-
 /// @title Simple Linked Transfer App
 /// @notice This contract allows users to claim a payment locked in
 ///         the application if they provide the correct preImage
@@ -25,6 +24,10 @@ contract SimpleLinkedTransferApp {
 
     struct Action {
         bytes32 preImage;
+    }
+
+    function hash(bytes calldata input) external view returns (bytes32) {
+        return sha256(input);
     }
 
     function applyAction(
